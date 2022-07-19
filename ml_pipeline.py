@@ -4,7 +4,7 @@ import math
 import itertools
 import matplotlib.pyplot as plt
 plt.rcParams["figure.figsize"] = (20,8)
-from fbprophet import Prophet
+# from fbprophet import Prophet
 import pmdarima as pm
 from pmdarima import auto_arima
 from statsmodels.tsa.statespace.sarimax import SARIMAX
@@ -27,65 +27,65 @@ def mean_absolute_percentage_error(y_true, y_pred):
 	return (np.sum(np.abs(y_true - y_pred)) / np.sum(y_true)) * 100	### MAE%
 
 
-class suppress_stdout_stderr(object):
-    '''
-    A context manager for doing a "deep suppression" of stdout and stderr in
-    Python, i.e. will suppress all print, even if the print originates in a
-    compiled C/Fortran sub-function.
-       This will not suppress raised exceptions, since exceptions are printed
-    to stderr just before a script exits, and after the context manager has
-    exited (at least, I think that is why it lets exceptions through).
+# class suppress_stdout_stderr(object):
+#     '''
+#     A context manager for doing a "deep suppression" of stdout and stderr in
+#     Python, i.e. will suppress all print, even if the print originates in a
+#     compiled C/Fortran sub-function.
+#        This will not suppress raised exceptions, since exceptions are printed
+#     to stderr just before a script exits, and after the context manager has
+#     exited (at least, I think that is why it lets exceptions through).
 
-    '''
-    def __init__(self):
-        # Open a pair of null files
-        self.null_fds = [os.open(os.devnull, os.O_RDWR) for x in range(2)]
-        # Save the actual stdout (1) and stderr (2) file descriptors.
-        self.save_fds = [os.dup(1), os.dup(2)]
+#     '''
+#     def __init__(self):
+#         # Open a pair of null files
+#         self.null_fds = [os.open(os.devnull, os.O_RDWR) for x in range(2)]
+#         # Save the actual stdout (1) and stderr (2) file descriptors.
+#         self.save_fds = [os.dup(1), os.dup(2)]
 
-    def __enter__(self):
-        # Assign the null pointers to stdout and stderr.
-        os.dup2(self.null_fds[0], 1)
-        os.dup2(self.null_fds[1], 2)
+#     def __enter__(self):
+#         # Assign the null pointers to stdout and stderr.
+#         os.dup2(self.null_fds[0], 1)
+#         os.dup2(self.null_fds[1], 2)
 
-    def __exit__(self, *_):
-        # Re-assign the real stdout/stderr back to (1) and (2)
-        os.dup2(self.save_fds[0], 1)
-        os.dup2(self.save_fds[1], 2)
-        # Close the null files
-        for fd in self.null_fds + self.save_fds:
-            os.close(fd)
+#     def __exit__(self, *_):
+#         # Re-assign the real stdout/stderr back to (1) and (2)
+#         os.dup2(self.save_fds[0], 1)
+#         os.dup2(self.save_fds[1], 2)
+#         # Close the null files
+#         for fd in self.null_fds + self.save_fds:
+#             os.close(fd)
 
 
-def get_best_params_fb_prophet(train, test, time_col, target):
-	df = pd.DataFrame()
-	df['ds'] = train[time_col]
-	df['y'] = train[target]
+# def get_best_params_fb_prophet(train, test, time_col, target):
+# 	df = pd.DataFrame()
+# 	df['ds'] = train[time_col]
+# 	df['y'] = train[target]
 
-	param_grid = {  
-	'changepoint_prior_scale': [x for x in np.arange(0.01,0.11,0.01)],
-	'seasonality_mode': ['multiplicative']
-	}
-	# Generate all combinations of parameters
-	all_params = [dict(zip(param_grid.keys(), v)) for v in itertools.product(*param_grid.values())]
-	error = []  # Store the error for each params here
+# 	param_grid = {  
+# 	'changepoint_prior_scale': [x for x in np.arange(0.01,0.11,0.01)],
+# 	'seasonality_mode': ['multiplicative']
+# 	}
+# 	# Generate all combinations of parameters
+# 	all_params = [dict(zip(param_grid.keys(), v)) for v in itertools.product(*param_grid.values())]
+# 	error = []  # Store the error for each params here
 
-	# Evaluate all parameters
-	for params in all_params:
-		m = Prophet(**params)
-		with suppress_stdout_stderr():
-			m.fit(df)
-		future = pd.DataFrame()
-		future['ds'] = test[time_col]
-		forecast = m.predict(future)
-		#print(test, forecast, target)
-		mape = mean_absolute_percentage_error(test[target], forecast['yhat'])
-		#("MAPE for %s %s" % (target, mape))
-		error.append(mape)
+# 	# Evaluate all parameters
+# 	for params in all_params:
+# 		m = Prophet(**params)
+# 		with suppress_stdout_stderr():
+# 			m.fit(df)
+# 		future = pd.DataFrame()
+# 		future['ds'] = test[time_col]
+# 		forecast = m.predict(future)
+# 		#print(test, forecast, target)
+# 		mape = mean_absolute_percentage_error(test[target], forecast['yhat'])
+# 		#("MAPE for %s %s" % (target, mape))
+# 		error.append(mape)
 
-	# Find the best parameters
-	best_params = all_params[np.argmin(error)]
-	return best_params
+# 	# Find the best parameters
+# 	best_params = all_params[np.argmin(error)]
+# 	return best_params
 
 
 def gridsearch_rf(train, target):
@@ -131,22 +131,22 @@ def gridsearch_xgb(train, target):
 	return params
 
 
-def forecast_using_prophet(train, test, time_col, target):
-  train_x, test_x = np.split(train, [int(0.8*len(train))])
-  df = pd.DataFrame()
-  df['ds'] = train[time_col]
-  df['y'] = train[target]
-  best_params = get_best_params_fb_prophet(train_x,test_x,time_col,target)
-  m = Prophet(**best_params)
-  with suppress_stdout_stderr():
-    m.fit(df)
-  future = pd.DataFrame()
-  future['ds'] = test[time_col]
-  forecast = m.predict(future)
-  result_prophet = pd.DataFrame()
-  result_prophet['ds'] = forecast['ds']
-  result_prophet['y'] = forecast['yhat']
-  return df.append(result_prophet)
+# def forecast_using_prophet(train, test, time_col, target):
+#   train_x, test_x = np.split(train, [int(0.8*len(train))])
+#   df = pd.DataFrame()
+#   df['ds'] = train[time_col]
+#   df['y'] = train[target]
+#   best_params = get_best_params_fb_prophet(train_x,test_x,time_col,target)
+#   m = Prophet(**best_params)
+#   with suppress_stdout_stderr():
+#     m.fit(df)
+#   future = pd.DataFrame()
+#   future['ds'] = test[time_col]
+#   forecast = m.predict(future)
+#   result_prophet = pd.DataFrame()
+#   result_prophet['ds'] = forecast['ds']
+#   result_prophet['y'] = forecast['yhat']
+#   return df.append(result_prophet)
 
 def forecast_using_linear_regression(train, test, time_col, target_col):
 	feature_names = train.columns.tolist()
@@ -309,3 +309,4 @@ def calculate_model_accuracy(y_true, y_pred, type='regression'):
 
 
 # print(calculate_model_accuracy([1,2,1], [1,2,2], type='classification'))
+# print(mean_absolute_percentage_error([1,2,1], [1,2,2]))
